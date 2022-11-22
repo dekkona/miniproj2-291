@@ -15,7 +15,9 @@ def valid_port():
             print("Please enter an integer for the server")
 
     return server_input
-
+def createIndex(col):
+    col.create_index([('abstract', TEXT), ("authors", TEXT), ('title', TEXT), ('venue', TEXT), ('year', TEXT)], default_language = "none")
+    
 def init_collection(db, collec_name, c_file):
 
     # Create the collection in the db
@@ -36,6 +38,8 @@ def init_collection(db, collec_name, c_file):
             print(f"Adding in row #{curr_row}", end='\r')
             collec.insert_one(data)
             curr_row += 1
+           
+    createIndex(collec)
 
     print(f"\nAll {curr_row-1} rows inserted")
 
