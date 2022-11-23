@@ -15,6 +15,58 @@ def valid_port():
 
     return server_input
 
+def searchArticles(db):
+    word = input("Search for an article: ")
+    try:
+        word = int(word)
+        results = db.dblp.find({"year": word})
+    except:
+        query = {"$search": "(\"{}\"".format(word)}
+        results = db.dblp.find({"$text": query},
+                                {"_id": 1, "title": 1, "year": 1, "venue": 1})
+    count = 1
+    resArr = list(results)
+    for i in resArr:
+        print(f"{count}. {i}")
+        count += 1
+    opt = int(input("Select an article to view more. 0 to return to main menu: "))
+    if opt in range(1, len(resArr) + 1):
+        get_one = db.dblp.find_one({"_id": resArr[opt - 1].get('_id')},
+                               {"_id": 1, "title": 1, "abstract": 1, "venue": 1, "authors": 1,
+                                "year": 1})
+        refs = db.dblp.aggregate([{"$unwind": "$references"},
+                                  {"$match": {"references": resArr[opt - 1].get('_id')}},
+                                  {"$group": {"_id":"$_id"}},
+                                  {"$project": {"_id": 1, "title": 1, "year": 1}}
+        ])
+        print(get_one)
+        print("Article referenced by:")
+        for i in refs:
+            print(i)
+        # return to main menu here
+
+def searchAuthor(db):
+    auth = input("Search for an author: ")
+    query = {"$search": "(\"{}\"".format(auth)}
+    results = db.dblp.aggregate([{"$match": {"$text": query}},
+                                 {"$unwind": "$authors"},
+                                 {"$match": {"authors": {"$regex": auth, "$options": "i"}}},
+                                 {"$group": {"_id": "$authors",
+                                             "Publications": {"$sum": 1}}},
+                                 {"$addFields": {"Author": "$_id"}},
+                                 {"$project": {"_id": 0, "Author": 1, "Publications": 1}}])
+    count = 1
+    resArr = list(results)
+    for i in resArr:
+        print(f"{count}. {i}")
+        count += 1
+    opt = int(input("Select an author to view all publications. 0 to return to main menu: "))
+    if opt in range(1, len(resArr) + 1):
+        get_pubs = db.dblp.find({"authors": resArr[opt - 1].get('Author')},
+                                {"_id": 0, "title": 1, "year": 1, "venue": 1})
+        for i in get_pubs:
+            print(i)
+
 def list_venues(db):
     collec = db['dblp'] 
     # get distinct venues
@@ -51,9 +103,6 @@ def list_venues(db):
         top_venues[key]=all_venues.get(key)
     
     # get articles that fall under top n venues
-    all_articles = list(collec.find())
-
-    reference_counts = []
     for ven, num in top_venues.items():
         #print(key, values)
         cursor = collec.aggregate([{'$match': {'venue': {'$eq': ven}}}])
@@ -143,25 +192,15 @@ def main():
     # create document store menu
     option = None
     while option != 'e':
-        option = input("\nEnter\n" + ('-'*50) + "\n'sar' to Search for Articles,\n'sa' to Search for Authors,\n'lv' to List the Venues,\n'aa' to Add an Article,\nor 'e' to Exit: ").strip().lower()
+        option = input("\nMenu\n" + ('-'*50) + "\n'sar' to Search for Articles,\n'sa' to Search for Authors,\n'lv' to List the Venues,\n'aa' to Add an Article,\nor 'e' to Exit: ").strip().lower()
 
         if option == 'aa': 
             add_article(db)
         elif option == 'lv':
             list_venues(db)
+        elif option == 'sar':
+            searchArticles(db)
+        elif option == 'sa':
+            searchAuthor(db)
 
 main()
-
-# def test():
-#     client = MongoClient(f'mongodb://localhost:27012')
-#     # create or connect to the database
-#     db_name = '291db'
-#     db = client[db_name] 
-#     print(f"Connected to {db_name}")
-#     collec = db['dblp'] 
-
-#     cursor = collec.aggregate([{'$match': {'references': {'$elemMatch': {'$eq': "6b727e8c-85bf-42ae-8bf4-715f82aedd9a"}}}}])
-#     #cursor = collec.find({'references': {'$elemMatch': {'$eq': '0102f234-e30b-4b35-88a4-27e57838947a'}}})
-#     article_refs = list(cursor)
-#     print(len(article_refs))
-# test()
