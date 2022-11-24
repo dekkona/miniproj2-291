@@ -13,6 +13,7 @@ def searchArticles(db):
         num = 1
         print(f"{count}. {i}")
         count += 1
+    results.rewind()
     resArr = list(results)
     if num == 0:
         # return to main menu
