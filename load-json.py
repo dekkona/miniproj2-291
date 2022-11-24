@@ -1,5 +1,4 @@
 from pymongo import MongoClient
-import json
 from pymongo import TEXT
 import os
 
@@ -15,11 +14,11 @@ def valid_port():
             print("Please enter an integer for the server")
 
     return server_input
-
 def createIndex(col):
+    print("creating indexes...")
     col.create_index([("abstract", TEXT), ("authors", TEXT), ('title', TEXT), ('venue', TEXT), ('references', TEXT)],
-                     default_language="none")
-    
+                     default_language="none")    
+
 def init_collection(db, collec_name, c_file, portNum):
 
     # Create the collection in the db
@@ -29,24 +28,11 @@ def init_collection(db, collec_name, c_file, portNum):
     # specify no condition.
     collec.delete_many({})
 
-    # insert the loaded data into the collection
-    # file large so intert row by row in for loop
-
+    # insert the loaded data into the collection    
     print(f"Adding into collection: {collec_name}\n")
-    # curr_row = 1
-    # with open(c_file, 'r') as f:
-    #     for line in f:
-    #         data = json.loads(line)
-    #         #print(f"Adding in row #{curr_row}", end='\r')
-    #         #collec.insert_one(data)
-    #         curr_row += 1
-
-    os.system(f'mongoimport --host localhost:{portNum} --db 291db --collection dblp --file {c_file} --batchSize 100')
-
-           
+    print("\nadding data:")
+    os.system(f'mongoimport --host localhost:{portNum} --db 291db --collection dblp --file {c_file} --batchSize 1000')     
     createIndex(collec)
-
-    #print(f"\nAll {curr_row-1} rows inserted")
 
 
 def main():
