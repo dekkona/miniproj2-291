@@ -1,4 +1,5 @@
 from pymongo import MongoClient
+from pymongo import TEXT
 import json
 import datetime
 
@@ -23,28 +24,37 @@ def searchArticles(db):
     except:
         query = {"$search": "(\"{}\"".format(word)}
         results = db.dblp.find({"$text": query},
-                                {"_id": 1, "title": 1, "year": 1, "venue": 1})
+                                {"_id": 0, "id": 1, "title": 1, "year": 1, "venue": 1})
     count = 1
-    resArr = list(results)
-    for i in resArr:
+    num = 0
+    for i in results:
+        num = 1
         print(f"{count}. {i}")
         count += 1
-    opt = int(input("Select an article to view more. 0 to return to main menu: "))
-    if opt in range(1, len(resArr) + 1):
-        get_one = db.dblp.find_one({"_id": resArr[opt - 1].get('_id')},
-                               {"_id": 1, "title": 1, "abstract": 1, "venue": 1, "authors": 1,
+    results.rewind()
+    resArr = list(results)
+    if num == 0:
+        # return to main menu
+        print("No matching articles found")
+        pass
+    opt = int(input("Select an article to view more. Any other input to return to main menu: "))
+    if opt in range(1, count):
+        oid = resArr[opt - 1].get('id')
+        get_one = db.dblp.find_one({"id": oid},
+                               {"_id": 0, "id": 1, "title": 1, "abstract": 1, "venue": 1, "authors": 1,
                                 "year": 1})
-        refs = db.dblp.aggregate([{"$unwind": "$references"},
-                                  {"$match": {"references": resArr[opt - 1].get('_id')}},
-                                  {"$group": {"_id":"$_id"}},
-                                  {"$project": {"_id": 1, "title": 1, "year": 1}}
-        ])
         print(get_one)
+        refs = db.dblp.find({"references": oid},
+                            {"_id": 0, "title": 1, "year": 1, "id": 1})
         print("Article referenced by:")
         for i in refs:
             print(i)
         # return to main menu here
+    else:
+        pass
+        # return to main menu here
 
+        
 def searchAuthor(db):
     auth = input("Search for an author: ")
     query = {"$search": "(\"{}\"".format(auth)}
@@ -53,6 +63,7 @@ def searchAuthor(db):
                                  {"$match": {"authors": {"$regex": auth, "$options": "i"}}},
                                  {"$group": {"_id": "$authors",
                                              "Publications": {"$sum": 1}}},
+                                 {"$sort": {"year": -1}},
                                  {"$addFields": {"Author": "$_id"}},
                                  {"$project": {"_id": 0, "Author": 1, "Publications": 1}}])
     count = 1
@@ -66,22 +77,16 @@ def searchAuthor(db):
                                 {"_id": 0, "title": 1, "year": 1, "venue": 1})
         for i in get_pubs:
             print(i)
+    else:
+        pass
+
 
 def list_venues(db):
     collec = db['dblp'] 
-    # get distinct venues
+
+    # get distinct venues for venue_count
     venues = collec.distinct("venue")
-    # for each n venue get count
-    all_venues = {}
-    for v in venues:
-        if v != None and v != '':
-            cursor = collec.aggregate([{'$match': {'venue': {'$eq': v}}},{'$count': v}])
-            venue_info = list(cursor)[0]
-            for key, value in venue_info.items():
-                all_venues[key] = value
-    # sort venues by count
-    all_venues = {k: v for k, v in sorted(all_venues.items(), key=lambda item: item[1])}
-    venue_count = len(all_venues)
+    venue_count = len(venues)
     # get user input for top n venues
     valid_n = False
     while not valid_n:
@@ -96,33 +101,33 @@ def list_venues(db):
                 valid_n = True
         except ValueError:
             print("n must be an integer.")    
-    # newdict 'top_venues' for top n venues
-    rev = list(reversed(list(all_venues)))[0:inp_n]
-    top_venues = {}
-    for key in rev:
-        top_venues[key]=all_venues.get(key)
-    
+
+    # for each distinct venue get count
+    top_venues = list(collec.aggregate([{"$group": {"_id": "$venue", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}, {"$limit": inp_n}]))
+    #print(top_venues)
+    top_refs = {}
+    top_count = {}
     # get articles that fall under top n venues
-    for ven, num in top_venues.items():
-        #print(key, values)
-        cursor = collec.aggregate([{'$match': {'venue': {'$eq': ven}}}])
-        articles = list(cursor)
-        all_article_refs = []
+    for venue in top_venues:
+        articles = list(collec.aggregate([{'$match': {'venue': {'$eq': venue['_id']}}}, {'$project': {"id": '$id', '_id': 0}}]))
+        ids = []
         for article in articles:
-            cursor = collec.aggregate([{'$match': {'references': {'$elemMatch': {'$eq': article['id']}}}}])
-            article_refs = list(cursor)
-            if article_refs not in all_article_refs:
-                all_article_refs.append(article_refs)
-        top_venues[ven] = [num, len(all_article_refs)] # top_venues = {venue: [count, ref_count]}
+            ids.append(article["id"])
+        
+        article_refs = list(collec.aggregate([{'$match': {'references': {'$elemMatch': {'$in': ids}}}}]))
+        top_count.update({venue['_id']: venue['count']})
+        top_refs.update({venue['_id']: len(article_refs)})
     
-    # sort venues by reference count
-    top_venues = {k: v for k, v in sorted(top_venues.items(), key=lambda item: item[1][1], reverse = True)}
-    
+    #top_refs = {k: v for k, v in sorted(top_refs.items(), key=lambda item: item[1][1], reverse = True)}
+    print(top_count)    
+    print(top_refs)
+
     i=1
     print('\nTop Venues')
-    for k, v in top_venues.items():
-        print(('-'*50)+'\n#'+str(i)+ '\nVenue: ' + k + '\nArticles in Venue: ' + str(v[0]) + '\nReferences: ' + str(v[1]))
+    for k, v in top_count.items():
+        print(('-'*50)+'\n#'+str(i)+ '\nVenue: ' + k + '\nArticles in Venue: ' + str(top_count[k]) + '\nReferences: ' + str(top_refs[k]))
         i += 1
+
 
 def add_article(db):
     collec = db['dblp'] 
@@ -179,11 +184,11 @@ def add_article(db):
 
 
 def main():
-    #port = valid_port()
+    port = valid_port()
 
     # connect to server
-    #client = MongoClient(f'mongodb://localhost:{port}')
-    client = MongoClient(f'mongodb://localhost:27012')
+    client = MongoClient(f'mongodb://localhost:{port}')
+   
     # create or connect to the database
     db_name = '291db'
     db = client[db_name] 
