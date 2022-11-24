@@ -16,7 +16,8 @@ def valid_port():
 
     return server_input
 def createIndex(col):
-    col.create_index([('abstract', TEXT), ("authors", TEXT), ('title', TEXT), ('venue', TEXT), ('year', TEXT)], default_language = "none")
+    col.create_index([("abstract", TEXT), ("authors", TEXT), ('title', TEXT), ('venue', TEXT), ('year', TEXT), ('id', TEXT)],
+                     default_language="none")
     
 def init_collection(db, collec_name, c_file, portNum):
 
