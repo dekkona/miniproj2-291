@@ -39,7 +39,7 @@ def init_collection(db, collec_name, c_file, portNum):
     #         #collec.insert_one(data)
     #         curr_row += 1
 
-    os.system(f'mongoimport --host localhost:{portNum} --db 291db --collection dblp --file {c_file} --batchSize 1000')
+    os.system(f'mongoimport --host localhost:{portNum} --db 291db --collection dblp --file {c_file} --batchSize 100')
 
            
     createIndex(collec)
