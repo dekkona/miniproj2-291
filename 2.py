@@ -6,6 +6,7 @@ def searchAuthor(db):
                                  {"$match": {"authors": {"$regex": auth, "$options": "i"}}},
                                  {"$group": {"_id": "$authors",
                                              "Publications": {"$sum": 1}}},
+                                 {"$sort": {"year": -1}},
                                  {"$addFields": {"Author": "$_id"}},
                                  {"$project": {"_id": 0, "Author": 1, "Publications": 1}}])
     count = 1
@@ -20,5 +21,4 @@ def searchAuthor(db):
         for i in get_pubs:
             print(i)
     else:
-        #return to main menu here
         pass
