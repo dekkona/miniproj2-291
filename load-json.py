@@ -33,6 +33,10 @@ def init_collection(db, collec_name, c_file, portNum):
     print("\nadding data:")
     os.system(f'mongoimport --host localhost:{portNum} --db 291db --collection dblp --file {c_file} --batchSize 1000')     
     createIndex(collec)
+    db.dblp.aggregate([{"$group": {"_id": {"id": "$id", "venue": "$venue"}}},
+                       {"$project": {"id": "$_id.id", "venue": "$_id.venue", "_id": 0}},
+                       {"$merge": {"into": "vendb"}}
+                       ])
 
 
 def main():
