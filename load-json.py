@@ -15,8 +15,9 @@ def valid_port():
             print("Please enter an integer for the server")
 
     return server_input
+
 def createIndex(col):
-    col.create_index([("abstract", TEXT), ("authors", TEXT), ('title', TEXT), ('venue', TEXT), ('year', TEXT), ('id', TEXT)],
+    col.create_index([("abstract", TEXT), ("authors", TEXT), ('title', TEXT), ('venue', TEXT), ('references', TEXT)],
                      default_language="none")
     
 def init_collection(db, collec_name, c_file, portNum):
