@@ -21,9 +21,10 @@ def list_venue(db):
                               "localField": "id",
                               "foreignField": "references",
                               "as": "refs"}},
+                                     {"$addFields": {"num": {"$size": "$refs"}}},
                         {"$group":
-                             {"_id": "$venue"}, "references": {"$sum": {"$size": "$refs"}}},
+                             {"_id": "$venue", "references": {"$sum": "$num"}}},
                         {"$project":{"venue": "$_id", "references": 1, "_id": 0}},
-                                     {"$sort": {"venue": -1}}, {"$limit": n}])
-    for i, j in venue_refs, n_venue:
-        print({"venue: " + i["venue"] + " articles: " + j["count"] + " referenced by: " + i["references"]})
+                                     {"$sort": {"references": -1}}, {"$limit": n}])
+    for i, j in zip(venue_refs, n_venue):
+        print("{venue: " + i["venue"] + " | Articles: " + str(j["count"]) + " | Referenced by: " + str(i["references"])+"}")
